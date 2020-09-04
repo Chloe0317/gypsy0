@@ -1,0 +1,64 @@
+---
+title: "Gypsy: variable gypsum application to a field"
+# author: "Chloe Lai"
+date: "11/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The resolution for all maps produced in this report is 3-arc second (approximately 90 m) and follows the GlobalSoilMap specification. This means that each pixel is approximately 0.75 ha. The calculation of gypsum requirement and cost of spread is based on per pixel area.
+The ESP maps for this field was generated using NSSC data. Details of the maps can be found in Lai et al. (2020).
+
+The mapped ESP to the depths specified:
+
+```{r esp, echo=FALSE}
+outs$p
+```
+
+The pure gypsum required to reduce ESP to the value specified for each soil depth interval is:
+
+```{r gypPure, echo=FALSE}
+outs$p1
+```
+
+Note that we assumed a bulk density of 1.3 $Mg/m^{3}$ for soil depth interval of 0-30 cm, and a bulk density of 1.4 $Mg/m^{3}$ for soil depth > 30 cm. The F factor for the gypsum requirement equation (Oster and Jayawardane, 1998) were assumed to be 1.3. 
+
+The total pure gypsum required to ameliorate the field to the depths specified: 
+
+```{r totalGypP, echo=FALSE}
+outs$p2
+```
+
+Accounting for potential surface runoff loss of gypsum and negative salinity effects at high application rates, the variable rate gypsum application for the gypsum quality specified to the desired soil depth is mapped as follows:
+
+```{r totalGypReq, echo=FALSE}
+outs$p3
+```
+
+The cost of the gypsum application for this field is:
+
+```{r GypCost, echo=FALSE}
+outs$p4
+```
+
+
+Predicted annual yield increase averaged over the specified period is:
+```{r yldadd, echo=FALSE}
+outs$p5
+```
+
+The additional annual income averaged over the specified period is: 
+
+```{r incomeAdd, echo=FALSE}
+outs$p6
+```
+
+The variable net benefit predicted over the specified period to the selected depths for this field is:
+
+```{r netBen, echo=FALSE}
+outs$p7
+```
+

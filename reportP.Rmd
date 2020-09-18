@@ -1,7 +1,7 @@
 ---
 title: 'Gypsy: profile-based gypsum application recommendation'
 # author: "Chloe Lai"
-date: "12/08/2020"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
@@ -9,24 +9,34 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## `r input$fieldName`
 
+### `r paste0('Crop: ', input$cropType)`
 
-```{r total, echo=FALSE}
+`r paste0('Total gypsum required to reach non-limiting ESP (t/ha):', round(out_list()$gTotal, digits = 2))`
 
-paste0('Total gypsum required to reach non-limiting ESP (Mg/ha):', round(out_list()$gTotal, digits = 2))
-```
 
 
 ```{r table, echo=FALSE}
-out_list()$df
+
+
+kable(out_list()$df, escape = F)%>%
+  column_spec(1, bold = T) %>%
+  kable_styling(
+    font_size = 15,
+    bootstrap_options = c("striped", "hover", "condensed","responsive")
+  )
+
+    
 ```
 
 
 
 ```{r plot, echo=FALSE}
 plot(out_list()$gypRate, out_list()$ben.net, type = 'l',
-     xlab = 'Gypsum rate (Mg/ha)', ylab = 'Estimated net benefit over time period ($/ha)')
+     xlab = 'Gypsum rate (t/ha)', ylab = 'Estimated net benefit over time period ($/ha)')
 abline(v = 10, col = 'red')
+abline(h = 0, col = 'navy')
 ```
 
 

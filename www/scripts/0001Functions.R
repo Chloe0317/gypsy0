@@ -109,7 +109,7 @@ calCl_l <- function(CLu, ECsoil_u, ECsoil_l){
 corr_esp <- function(CEC, ESP, Cl){
   #if EC > 0.3, soil is saline, adjust ESP #should be surface soil EC
   cec <- CEC-(Cl/355)
-  esp <- ((ESP*CEC/100)-(Cl/355)*100)/(CEC-(Cl/355))
+  esp <- (((ESP*CEC/100)-(Cl/355))*100)/(CEC-(Cl/355))
   out <- list('CEC' = cec, 'ESP' = esp)
 }
 
@@ -156,22 +156,28 @@ calGrate <- function(rPure, qualG){
 # calculate gypsum used either to reduce initESP to minESP or 
 # total applied depending on gypsum requirement
 
+calGreq <- function(ESPmin, ESPinit, BD, CEC, depth = 0.25,factorF){
 
-calGreq <- function(ESPmin, ESPinit, BD, factorF, CEC){
-  #accommodate raster option
-  if (class(ESPinit) == 'RasterLayer'){
-    maxInit <- maxValue(ESPinit)
-  }else{
-    maxInit <- ESPinit
-  }
-  
-  #calculate gypsum requirement 
-  if (ESPmin <= maxInit){
-    gReq <- 0.086 * factorF * 0.25 * BD * CEC * (ESPinit - ESPmin)
+
+  #calculate gypsum requirement
+  if (ESPmin <= ESPinit){
+    gReq <- 0.086 * factorF * depth * BD * CEC * (ESPinit - ESPmin)
   }else{
     gReq <- 0
   }
   return(gReq)
+}
+
+
+calGused_z <- function(gReq, rPure){
+  #function to calculate gypsum used in upper depths (0-25 cm)
+  gUsed <- vector(mode = 'numeric', length = length(gReq))
+  diff <- rPure - gReq
+  idx <- which(diff>0)
+  gUsed[idx] <- gReq[idx]
+  gUsed[-idx] <- rPure[-idx]
+  return(gUsed)
+
 }
 
 calGused <- function(gReq, rPure){
@@ -187,9 +193,16 @@ calGused <- function(gReq, rPure){
 
 
 
-calESPf <- function(gUsed, f, ESPinit, BD, CEC){
-  ESP_f <- ESPinit - (gUsed/(0.086*f*0.25*BD*CEC))
-  ESP_f
+calESPf <- function(gUsed, f, ESPinit, BD, CEC, depth = 0.25){
+  
+  ESP_f <- ESPinit - (gUsed/(0.086*f*depth*BD*CEC))
+  if (ESP_f>0){
+    return(ESP_f)
+  }else{
+    ESP_f <- 0
+    return(ESP_f)
+  }
+  
 }
 
 
@@ -223,6 +236,7 @@ calcYldadd <- function(
     yf <- 10.6
   }
   yldAdd <- yf * (ExNa.init - ExNa.fin)*(yr-0.2)/yr
+  return(yldAdd)
 
 }
 
@@ -231,7 +245,180 @@ calcGtotal <- function(gRequ, gReql, qualG){
   gTotal
 }
 
+optimZoneWrap <- function(gypZ1, gyp.t, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg){
+  # gypZ1 is the allocated gypsum application in each zone
+  # we'd like to optimize the allocation of gypZ1 in individual zones to maximize additional yield and minimize spending
+  if (sum(gypZ1)>gyp.t){
+    return(0)
+  }else{
+    y <- optimZone(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg)
+    return(y)
+  }
 
+}
+
+optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg){
+  
+  # this gypsum is not pure gypsum, calculate pure gypsum applied to each zone
+  
+  # get per ha application
+  gypZ <- gypZ1/unique(df2$Area)
+  
+  new <- cbind(gypZ, qG)
+  gypZ <- apply(new, MARGIN = 1, FUN = function(x){
+    xx <- as.numeric(x)
+    y <- calRatepure(xx[1], xx[2])
+    return(y)
+  })
+  
+  # calculate gypsum used in each zone-------
+  # split into upper depths and lower depths
+  dfu <- df1[df1$UpperDepth == 0,]
+  dfl <- df1[df1$UpperDepth != 0,]
+  # make sure the zone is sorted same as df2
+  dfu <- dfu[order(dfu$ZoneName),]
+  dfl <- dfl[order(dfl$ZoneName),]
+  
+  uu <- cbind(dfu$gypReqP, gypZ)
+  gUsed.u <- apply(uu, 1, function(x){
+    xx <- as.numeric(x)
+    y <- calGused(xx[1],xx[2])
+    return(y)
+  })
+  # check if surplus, goes to lowerdepth
+  gLeft <- gypZ-gUsed.u
+  ll <- cbind(dfl$gypReqP, gLeft)
+  gUsed.l <- apply(ll, 1, function(x){
+    xx <- as.numeric(x)
+    y <- calGused(xx[1],xx[2])
+    return(y)
+  })
+  
+
+  #calculate final expected ESP
+  # get final ESP for upper and lower depths
+  df3 <- rbind.data.frame(dfu,dfl)
+  df3$gUsed <- NA
+
+  df3$gUsed<- c(gUsed.u, gUsed.l)
+  df3$fFactor <- 1.3
+  nn <- df3[c('gUsed','fFactor', 'ESP','BD', 'CEC', 'UpperDepth','LowerDepth')]
+  espf <- apply(nn, 1, function(x){
+    xx <- as.numeric(x)
+    dd <- (xx[7]-xx[6])/100
+    y <- calESPf(xx[1],xx[2],xx[3],xx[4],xx[5],dd)
+    return(y)
+  })
+  df3$ESPf <- espf
+  
+  
+  # calculate final exchangeable sodium
+  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df1$CEC[df1$UpperDepth == 0],df1$CEC[df1$UpperDepth != 0])
+  na.f <- apply(new, MARGIN = 1, FUN = function(x) {
+    xx <- as.numeric(x)
+    y <- calExNa(xx[1],xx[2],xx[3],xx[4])
+    return(y)
+  })
+  # get total yield improvement for this field
+  new2 <- cbind(df2$ExNa, na.f, df2$Area)
+  yld.t <- apply(new2, MARGIN = 1, FUN = function(x){
+    xx <- as.numeric(x)
+    y <- calcYldadd(ds, xx[1],xx[2], yr)*xx[3]
+  })
+  # calculate the additional income
+  incomez <- sum(yld.t)*pricez
+  
+
+
+  # calculate the net benefit over the crop cycle
+  # gypZ1 <- round(gypZ1, digits = 2)
+  netBen <- yr*incomez-costg*(sum(gypZ1))-dRatez*costg*(sum(gypZ1))*0.01*yr
+  # netBen <- round(netBen, digit = 2)
+  return(netBen)
+}
+
+optimZone1 <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg){
+  # same as optimZone but detailed output
+  # this gypsum is not pure gypsum, calculate pure gypsum applied to each zone
+  
+  # get per ha application
+  gypZ <- gypZ1/unique(df2$Area)
+  
+  new <- cbind(gypZ, qG)
+  gypZ <- apply(new, MARGIN = 1, FUN = function(x){
+    xx <- as.numeric(x)
+    y <- calRatepure(xx[1], xx[2])
+    return(y)
+  })
+  
+  # calculate gypsum used in each zone-------
+  # split into upper depths and lower depths
+  dfu <- df1[df1$UpperDepth == 0,]
+  dfl <- df1[df1$UpperDepth != 0,]
+  dfu <- dfu[order(dfu$ZoneName),]
+  dfl <- dfl[order(dfl$ZoneName),]
+  
+  uu <- cbind(dfu$gypReqP, gypZ)
+  gUsed.u <- apply(uu, 1, function(x){
+    xx <- as.numeric(x)
+    y <- calGused(xx[1],xx[2])
+    return(y)
+  })
+  # check if surplus, goes to lowerdepth
+  gLeft <- gypZ-gUsed.u
+  ll <- cbind(dfl$gypReqP, gLeft)
+  gUsed.l <- apply(ll, 1, function(x){
+    xx <- as.numeric(x)
+    y <- calGused(xx[1],xx[2])
+    return(y)
+  })
+  
+  
+  #calculate final expected ESP
+  # get final ESP for upper and lower depths
+  df3 <- rbind.data.frame(dfu,dfl)
+  df3$gUsed <- NA
+  
+  df3$gUsed<- c(gUsed.u, gUsed.l)
+  df3$fFactor <- 1.3
+  nn <- df3[c('gUsed','fFactor', 'ESP','BD', 'CEC', 'UpperDepth','LowerDepth')]
+  espf <- apply(nn, 1, function(x){
+    xx <- as.numeric(x)
+    dd <- (xx[7]-xx[6])/100
+    y <- calESPf(xx[1],xx[2],xx[3],xx[4],xx[5],dd)
+    return(y)
+  })
+  df3$ESPf <- espf
+  
+  
+  # calculate final exchangeable sodium
+  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df1$CEC[df1$UpperDepth == 0],df1$CEC[df1$UpperDepth != 0])
+  na.f <- apply(new, MARGIN = 1, FUN = function(x) {
+    xx <- as.numeric(x)
+    y <- calExNa(xx[1],xx[2],xx[3],xx[4])
+    return(y)
+  })
+  # get total yield improvement for this field
+  new2 <- cbind(df2$ExNa, na.f, df2$Area)
+  yld.t <- apply(new2, MARGIN = 1, FUN = function(x){
+    xx <- as.numeric(x)
+    y <- calcYldadd(ds, xx[1],xx[2], yr)*xx[3]
+  })
+  # calculate the additional income
+  incomez <- sum(yld.t)*pricez
+  addInc <- yld.t*pricez
+  # calculate the net benefit over the crop cycle
+
+  # gypZ1 <- round(gypZ1, digits = 2)
+  netBen <- yr*incomez-costg*(sum(gypZ1))-dRatez*costg*(sum(gypZ1))*0.01*yr
+  # netBen <- round(netBen, digit = 2)
+
+
+  df <- data.frame('ZoneName' = df2$ZoneName, 'ZoneArea' = df2$Area, 'GypsumRate' = round(gypZ1/df2$Area, digits = 2), 'GypsumTotal' = round(gypZ1, digits = 2),  'AdditionalYield' = yld.t, 'AdditionalIncome' = addInc)
+  out <- list('dfa' = df, 'dfb'= df3,'incAdd' = incomez, 'cost' = costg*(sum(gypZ1)),'netBen' = netBen)
+  return(out)
+  
+}
 
 #####-----------
 # UI related funtions
@@ -242,6 +429,10 @@ calcGtotal <- function(gRequ, gReql, qualG){
 # define original gypsy input into a sidebar panel-------
 gypsyO_side <- sidebarLayout(
   sidebarPanel(
+    
+    #specify paddock name
+    textInput(inputId = 'fieldName', label = strong('Paddock Name'), value = "", width = NULL,
+              placeholder = NULL),
     
     # select crop 
     # when we have more crops, build a df so that crops are limited by locations
@@ -255,39 +446,45 @@ gypsyO_side <- sidebarLayout(
                 selected = "Burdekin"),
     
     # specify key variables
-    numericInput('qualG', label = strong('Gypsum quality (%)'),
+    numericInput('qualG', label = strong('Gypsum quality (% Sulfur)'),
                  value = 14, min = 1, max = 18.6),
-    numericInput('costg', label = strong('Cost of gypsum spread ($/Mg)'),
+    numericInput('costg', label = strong('Cost of gypsum spread ($/t)'),
                  value = 90, min = 10, max = 300),
     
-    numericInput('price', label = strong('Price of crop ($/Mg)'),
+    numericInput('price', label = strong('Price of crop ($/t)'),
                  value = 30, min = 10, max = 150),
     numericInput('disRate', label = strong('Discount rate (% p.a.)'),
                  value = 7, min = 0, max = 30),
-    numericInput('MaxRate', label = strong('Maximum gypsum rate (Mg/ha)'),
+    HTML('NB: Nine gypsum rates based on the maximum gypsum rate will be plotted'),
+    numericInput('MaxRate', label = strong('Maximum gypsum rate for output graph (t/ha)'),
                  value = 30, min = 10, max = 80),
+    HTML('NB: Cash flow predictions over more than 4 years should be treated very cautiously'),
     numericInput('yr', label = strong('Time Period (Years)'),
-                 value = 4, min = 0, max = 10),
+                 value = 3, min = 0, max = 10),
     #key soil inputs
-    HTML("Key soil properties (0-25 cm)"),
+    HTML("Key soil properties (0-20 cm)"),
     numericInput('CECu', label = strong('CEC (cmolc/kg)'),
                  value = 10, min = 0.01, max = 60),
     numericInput('ESPinit_u', label = strong('ESP (%)'),
                  value = 10, min = 0, max = 100),
     numericInput('ECsoil_u', label = strong('EC 1:5 soil water (dS/m)'),
                  value = 0.05, min = 0, max = 5),
+    numericInput('Cl_u', label = strong('Chloride (mg/kg)'),
+                 value = 0.05, min = 0, max = 5),
     
-    checkboxInput(inputId = "lowDepth", label = strong("Key soil properties (25-50 cm) known"), value = FALSE),
+    checkboxInput(inputId = "lowDepth", label = strong("Key soil properties (20-50 cm) known"), value = FALSE),
     # Display only if the lower depth soil properties are checked
     conditionalPanel(condition = "input.lowDepth == true",
                      #key soil inputs
-                     HTML("Key soil properties (25-50 cm)"),
+                     HTML("Key soil properties (20-50 cm)"),
                      numericInput('CECl', label = strong('CEC (cmolc/kg)'),
                                   value = 10, min = 0.01, max = 60),
                      numericInput('ESPinit_l', label = strong('ESP (%)'),
                                   value = 10, min = 0, max = 100),
                      numericInput('ECsoil_l', label = strong('EC 1:5 soil water (dS/m)'),
-                                  value = 0.05, min = 0, max = 5)
+                                  value = 0.05, min = 0, max = 5),
+                     numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
+                                  value = 0.05, min = 0, max = 5),
                      
     ),
     
@@ -301,16 +498,16 @@ gypsyO_side <- sidebarLayout(
                      HTML("Gypsy uses typical values for the parameters below. 
                                           However, these may be changed if such information is available"),
                      #key soil inputs
-                     HTML("Additional soil properties (0-25 cm)"),
-                     numericInput('BDu', label = strong('Bulk density (Mg/m3)'),
+                     HTML("Additional soil properties (0-20 cm)"),
+                     numericInput('BDu', label = strong('Bulk density (t/m3)'),
                                   value = 1.3, min = 0.8, max = 2),
                      numericInput('ESPmin_u', label = strong('minimum ESP (%) desired'),
                                   value = 3, min = 0, max = 10),
                      numericInput('Fu', label = strong('F factor'),
                                   value = 1.3, min = 1.1, max = 1.3),
                      #key soil inputs
-                     HTML("Additional soil properties (25-50 cm)"),
-                     numericInput('BDl', label = strong('Bulk density (Mg/m3)'),
+                     HTML("Additional soil properties (20-50 cm)"),
+                     numericInput('BDl', label = strong('Bulk density (t/m3)'),
                                   value = 1.4, min = 1, max = 2.5),
                      numericInput('ESPmin_l', label = strong('minimum ESP (%) desired'),
                                   value = 3, min = 0, max = 10),
@@ -327,13 +524,14 @@ gypsyO_side <- sidebarLayout(
     hr(),
     htmlOutput('gTotal'),
     br(),
-    tableOutput('cashFlow'), 
+    # tableOutput('cashFlow'), 
+    htmlOutput('cashFlow'),
     br(),
     plotOutput(outputId = 'netBenefit'),
     br(),
     #add download button
     downloadButton('downloadP','Download', class = 'btn-block'),
-    HTML('NB: applying more than 10 Mg/ha is not recommended, even if estimated net benefit is positive.')
+    HTML('NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.')
     
   )
 )
@@ -344,6 +542,10 @@ gypsyF_side <- sidebarLayout(
   sidebarPanel(
     # because of  the nature of shp files, uploading just the .shp won't work
     # fileInput('shp','Define field boundary', buttonLabel = 'Upload'),
+    
+    #specify paddock name
+    textInput(inputId = 'fieldName_f', label = strong('Paddock Name'), value = "", width = NULL,
+              placeholder = NULL),
     
     fileInput(inputId = "shp",
               label = "Define field boundary. Choose shapefile",buttonLabel = 'Upload',
@@ -365,17 +567,18 @@ gypsyF_side <- sidebarLayout(
     selectInput('depth', 'Soil depths to include (cm)',
                 choices = c(5, 15, 30, 60, 100, 200), selected = 60),
     # gypsum quality and cost
-    numericInput('qualG_f', label = strong('Gypsum quality (%)'),
+    numericInput('qualG_f', label = strong('Gypsum quality (% Sulfur)'),
                  value = 14, min = 10, max = 18.6),
-    numericInput('costg_f', label = strong('Cost of gypsum spread ($/Mg)'),
-                 value = 90, min = 40, max = 150),
+    numericInput('costg_f', label = strong('Cost of gypsum spread ($/t)'),
+                 value = 90, min = 40, max = 300),
     
-    numericInput('price_f', label = strong('Price of crop ($/Mg)'),
-                 value = 30, min = 10, max = 50),
+    numericInput('price_f', label = strong('Price of crop ($/t)'),
+                 value = 30, min = 10, max = 150),
     numericInput('disRate_f', label = strong('Discount rate (% p.a.)'),
                  value = 7, min = 0, max = 30),
+    HTML('NB: Cash flow predictions over more than 4 years should be treated very cautiously'),
     numericInput('yr_f', label = strong('Time Period (Years)'),
-                 value = 4, min = 0, max = 10),
+                 value = 3, min = 0, max = 10),
     
     #add an action button so that the app can start variable-rate calc
     actionButton('calcF', 'Calculate')
@@ -398,8 +601,9 @@ gypsyF_side <- sidebarLayout(
     br(),
     plotOutput(outputId = 'netBen'),
     #add download button
-    downloadButton('downloadF','Download', class = 'btn-block'),
-    HTML('NB: applying more than 10 Mg/ha is not recommended, even if estimated net benefit is positive.')
+    downloadButton('downloadF','Download Report', class = 'btn-block'),
+    downloadButton('downloadRaster','Download maps as .tiff raster', class = 'btn-block'),
+    HTML('NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.')
   )
 )
 
@@ -425,6 +629,88 @@ fieldAnalysis <- function(){
         h1('Field-based', class = 'title fit-h1'),
         p('The field-based analysis of this new online version of Gypsy performs variable-rate calculation of gypsum requirement based on a boundary file of a field.','Upload an ESRI shapefile to allow the delineation of field boundaries. Note that a shapefile consists of different files with extensions .shp, .dbf, .shx, .prj. Select all the relevant files then click upload. Select the desired soil depths of calculation from the drop-down menu. Click calculate.',style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
         gypsyF_side
+    )
+  )
+}
+
+#########zonal-based analysis---------------
+
+gypsyZ_side <- sidebarLayout(
+  sidebarPanel(
+    # because of  the nature of shp files, uploading just the .shp won't work
+    # fileInput('shp','Define field boundary', buttonLabel = 'Upload'),
+    
+    #specify paddock name
+    textInput(inputId = 'fieldName_z', label = strong('Paddock Name'), value = "", width = NULL,
+              placeholder = NULL),
+    
+    # fileInput(inputId = "shp_z",
+    #           label = "Define field boundary. Choose shapefile",buttonLabel = 'Upload',
+    #           multiple = TRUE,
+    #           accept = c('.shp','.dbf','.sbn','.sbx','.shx','.prj')),
+    
+    fileInput(inputId = "csv",
+              label = "Define zones within a field",buttonLabel = 'Upload',
+              multiple = T,
+              accept = c('.csv','.txt')),
+    
+    selectInput(inputId = "cropType_z", label = strong("Crop"),
+                choices = crops,
+                selected = "Sugarcane"),
+    # Select districts to use
+    selectInput(inputId = "location_z", label = strong("District"),
+                choices = districts,
+                selected = "Burdekin"),
+    #specify desired ESP
+    numericInput('Budget', label = strong('Total budget to spend across the field ($)'), value = 10000),
+    #specify desired ESP
+    numericInput('ESPmin_z', label = strong('minimum ESP (%) desired'),
+                 value = 3, min = 0, max = 10),
+    # gypsum quality and cost
+    numericInput('qualG_z', label = strong('Gypsum quality (% Sulfur)'),
+                 value = 14, min = 10, max = 18.6),
+    numericInput('costg_z', label = strong('Cost of gypsum spread ($/t)'),
+                 value = 90, min = 40, max = 300),
+    
+    numericInput('price_z', label = strong('Price of crop ($/t)'),
+                 value = 30, min = 10, max = 150),
+    numericInput('disRate_z', label = strong('Discount rate (% p.a.)'),
+                 value = 7, min = 0, max = 30),
+    HTML('NB: Cash flow predictions over more than 4 years should be treated very cautiously'),
+    numericInput('yr_z', label = strong('Time Period (Years)'),
+                 value = 3, min = 0, max = 10),
+    
+    #add an action button so that the app can start variable-rate calc
+    actionButton('calcZ', 'Calculate')
+  ),
+  mainPanel(
+    hr(),
+    htmlOutput('incTotal'),
+    br(),
+    htmlOutput('costZ'),
+    br(),
+    htmlOutput('NetBenTotal'),
+    br(),
+    # tableOutput('Table'), 
+    htmlOutput('TableZ'),
+    br(),
+    htmlOutput('dfTable'),
+    br(),
+    #add download button
+    downloadButton('downloadZ','Download Report', class = 'btn-block'),
+    HTML('NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.')
+  )
+)
+
+
+zonalAnalysis <- function(){
+  tagList(
+    div(class = 'container',
+        h1('Zonal-based', class = 'title fit-h1'),
+        
+        # p() used previously will leave blank spaces next to super-scripted m3, need to pass html code instead
+        HTML(paste0('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">The zonal-based analysis of this new online version of Gypsy performs gypsum recommendation based on zonal data. Key in the budget available for the field in question.','Upload a .csv file with the following headings in this order: ZoneName, Area (ha), UpperDepth (cm), LowerDepth (cm), EC (dS/m), CEC (cmol(+)/kg), ExNa (cmol(+)/kg), ESP (%), Cl (mg/kg), BD (t/m',tags$sup('3'), '). The gypsum application recommended for each zone will be capped at 10 t/ha and is based on maximizing net-benefit of the whole field.</p>')),
+        gypsyZ_side
     )
   )
 }

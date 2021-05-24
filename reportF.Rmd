@@ -1,7 +1,7 @@
 ---
-title: "Gypsy: variable gypsum application to a field"
+title: "Gypsy: field-based gypsum application recommendation"
 # author: "Chloe Lai"
-date: "11/08/2020"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
@@ -9,8 +9,16 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## `r input$fieldName_f`
+
+### `r paste0('Crop: ', input$cropType_f)`
+
+
+
+
 The resolution for all maps produced in this report is 3-arc second (approximately 90 m) and follows the GlobalSoilMap specification. This means that each pixel is approximately 0.75 ha. The calculation of gypsum requirement and cost of spread is based on per pixel area.
 The ESP maps for this field was generated using NSSC data. Details of the maps can be found in Lai et al. (2020).
+
 
 The mapped ESP to the depths specified:
 
@@ -18,13 +26,16 @@ The mapped ESP to the depths specified:
 outs$p
 ```
 
+Note that for this field-based analysis, since soil EC was not taken into account, the yield improvement to be expected from adding gypsum to saline-sodic soil will be over-estimated since the effects of sodicity on crop yield is often masked in such conditions. 
+#### NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.
+
 The pure gypsum required to reduce ESP to the value specified for each soil depth interval is:
 
 ```{r gypPure, echo=FALSE}
 outs$p1
 ```
 
-Note that we assumed a bulk density of 1.3 $Mg/m^{3}$ for soil depth interval of 0-30 cm, and a bulk density of 1.4 $Mg/m^{3}$ for soil depth > 30 cm. The F factor for the gypsum requirement equation (Oster and Jayawardane, 1998) were assumed to be 1.3. 
+Note that we assumed a bulk density of 1.3 $tonne/m^{3}$ for soil depth interval of 0-30 cm, and a bulk density of 1.4 $tonne/m^{3}$ for soil depth > 30 cm. The F factor for the gypsum requirement equation (Oster and Jayawardane, 1998) were assumed to be 1.3. 
 
 The total pure gypsum required to ameliorate the field to the depths specified: 
 
@@ -62,3 +73,5 @@ The variable net benefit predicted over the specified period to the selected dep
 outs$p7
 ```
 
+
+####References

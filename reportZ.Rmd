@@ -1,0 +1,58 @@
+---
+title: 'Gypsy: zonal-based gypsum application recommendation'
+# author: "Chloe Lai"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## `r input$fieldName_z`
+
+### `r paste0('Crop: ', input$cropType)`
+
+Projected additional income (\$) p.a. for the field is `r round(zRate()$incAdd, digits = 2)`.
+
+Estimated total cost of gypsum application (\$) based on recommendation for the field is `r round(zRate()$cost, digits = 2)`. 
+
+Projected net benefit (\$) over time period for the field is `r round(zRate()$netBen, digits = 2)`. 
+
+Total gypsum (t) required to completely ameliorate ESP to the desired ESP for the field is `r round(sum(zRate()$dfb$gR), digits = 2)`. 
+
+```{r table1, echo=FALSE}
+
+kable(zRate()$dfa, escape = F, col.names = c('Zone Name', 'Zone Area (ha)',
+                                             'Recommended Gypsum Application Rate (t/ha)',
+                                             'Total Gypsum Recommended to Apply (t)',
+                                             'Projected Yield Increase (t)',
+                                             'Predicted Additional Income (&#36;)'))%>% #replace column name with sensible display
+  column_spec(1, bold = T) %>%
+  kable_styling(
+    font_size = 15,
+    bootstrap_options = c("striped", "hover", "condensed","responsive")
+  )
+
+    
+```
+
+
+
+```{r table2, echo=FALSE}
+
+df <- zRate()$dfb[c('ZoneName','gR','ESP', 'ESPf')] 
+row.names(df) <- NULL
+df[,2:4] <- round(df[,2:4], digits = 2)
+kable(df, escape = F, col.names = c('Zone Name', 
+                                    'Estimated Gypsum Requirement for Each Depth for the Zone Area(t)',
+                                    'Initial ESP for Each depth',
+                                    'Final ESP based on Maximizing Net Benefit')) %>%
+  column_spec(1, bold = T) %>%
+  kable_styling(
+    font_size = 15,
+    bootstrap_options = c("striped", "hover", "condensed","responsive"))
+
+```
+
+

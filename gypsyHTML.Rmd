@@ -1,0 +1,20 @@
+---
+title: "Gypsy"
+# author: "Chloe Lai"
+# date: "17/08/2020"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, echo=FALSE}
+library(shiny)
+shinyAppDir("C:/Users/u8012681/OneDrive - USQ/Work/Research/CRC HPS/PJA4.3.002/ProjectWork/Modelling/Sodicity/SoilNa/GypsyApp0/")
+```
+
+

@@ -22,13 +22,13 @@ subImage = function(rr, aoi.reproj) {
   ############################################
   #function to subset raster using shapefile#
   ############################################
-
+  
   
   rr.e  <-  crop(rr, aoi.reproj)
   dummy  <- setValues(rr.e, NA)
   shp.r  <-  rasterize(aoi.reproj, dummy)
   out <- mask(rr.e, mask = shp.r)
-
+  
   
 }
 
@@ -157,8 +157,8 @@ calGrate <- function(rPure, qualG){
 # total applied depending on gypsum requirement
 
 calGreq <- function(ESPmin, ESPinit, BD, CEC, depth = 0.25,factorF){
-
-
+  
+  
   #calculate gypsum requirement
   if (ESPmin <= ESPinit){
     gReq <- 0.086 * factorF * depth * BD * CEC * (ESPinit - ESPmin)
@@ -177,7 +177,7 @@ calGused_z <- function(gReq, rPure){
   gUsed[idx] <- gReq[idx]
   gUsed[-idx] <- rPure[-idx]
   return(gUsed)
-
+  
 }
 
 calGused <- function(gReq, rPure){
@@ -196,10 +196,10 @@ calGused <- function(gReq, rPure){
 calESPf <- function(gUsed, f, ESPinit, BD, CEC, depth = 0.25){
   
   ESP_f <- ESPinit - (gUsed/(0.086*f*depth*BD*CEC))
-  if (ESP_f>0){
+  if (ESP_f>3){
     return(ESP_f)
   }else{
-    ESP_f <- 0
+    ESP_f <- 3
     return(ESP_f)
   }
   
@@ -237,7 +237,7 @@ calcYldadd <- function(
   }
   yldAdd <- yf * (ExNa.init - ExNa.fin)*(yr-0.2)/yr
   return(yldAdd)
-
+  
 }
 
 calcGtotal <- function(gRequ, gReql, qualG){
@@ -254,7 +254,7 @@ optimZoneWrap <- function(gypZ1, gyp.t, df1, nzone, ds, df2, yr, qG, espmin, pri
     y <- optimZone(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg)
     return(y)
   }
-
+  
 }
 
 optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez, costg){
@@ -279,7 +279,7 @@ optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez
   dfu <- dfu[order(dfu$ZoneName),]
   dfl <- dfl[order(dfl$ZoneName),]
   
-  uu <- cbind(dfu$gypReqP, gypZ)
+  uu <- cbind(dfu$gypReqP/dfu$Area, gypZ)
   gUsed.u <- apply(uu, 1, function(x){
     xx <- as.numeric(x)
     y <- calGused(xx[1],xx[2])
@@ -287,19 +287,19 @@ optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez
   })
   # check if surplus, goes to lowerdepth
   gLeft <- gypZ-gUsed.u
-  ll <- cbind(dfl$gypReqP, gLeft)
+  ll <- cbind(dfl$gypReqP/dfu$Area, gLeft)
   gUsed.l <- apply(ll, 1, function(x){
     xx <- as.numeric(x)
     y <- calGused(xx[1],xx[2])
     return(y)
   })
   
-
+  
   #calculate final expected ESP
   # get final ESP for upper and lower depths
   df3 <- rbind.data.frame(dfu,dfl)
   df3$gUsed <- NA
-
+  
   df3$gUsed<- c(gUsed.u, gUsed.l)
   df3$fFactor <- 1.3
   nn <- df3[c('gUsed','fFactor', 'ESP','BD', 'CEC', 'UpperDepth','LowerDepth')]
@@ -313,14 +313,17 @@ optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez
   
   
   # calculate final exchangeable sodium
-  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df1$CEC[df1$UpperDepth == 0],df1$CEC[df1$UpperDepth != 0])
+  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df3$CEC[df3$UpperDepth == 0],df3$CEC[df3$UpperDepth != 0])
   na.f <- apply(new, MARGIN = 1, FUN = function(x) {
     xx <- as.numeric(x)
     y <- calExNa(xx[1],xx[2],xx[3],xx[4])
     return(y)
   })
+  
+  # calculate init ExNa
+  exNa.init <- calExNa(dfu$ESP, dfl$ESP, dfu$CEC, dfl$CEC)
   # get total yield improvement for this field
-  new2 <- cbind(df2$ExNa, na.f, df2$Area)
+  new2 <- cbind(exNa.init, na.f, df2$Area)
   yld.t <- apply(new2, MARGIN = 1, FUN = function(x){
     xx <- as.numeric(x)
     y <- calcYldadd(ds, xx[1],xx[2], yr)*xx[3]
@@ -328,8 +331,8 @@ optimZone <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRatez
   # calculate the additional income
   incomez <- sum(yld.t)*pricez
   
-
-
+  
+  
   # calculate the net benefit over the crop cycle
   # gypZ1 <- round(gypZ1, digits = 2)
   netBen <- yr*incomez-costg*(sum(gypZ1))-dRatez*costg*(sum(gypZ1))*0.01*yr
@@ -355,10 +358,11 @@ optimZone1 <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRate
   # split into upper depths and lower depths
   dfu <- df1[df1$UpperDepth == 0,]
   dfl <- df1[df1$UpperDepth != 0,]
+  # make sure the zone is sorted same as df2
   dfu <- dfu[order(dfu$ZoneName),]
   dfl <- dfl[order(dfl$ZoneName),]
   
-  uu <- cbind(dfu$gypReqP, gypZ)
+  uu <- cbind(dfu$gypReqP/dfu$Area, gypZ)
   gUsed.u <- apply(uu, 1, function(x){
     xx <- as.numeric(x)
     y <- calGused(xx[1],xx[2])
@@ -366,7 +370,7 @@ optimZone1 <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRate
   })
   # check if surplus, goes to lowerdepth
   gLeft <- gypZ-gUsed.u
-  ll <- cbind(dfl$gypReqP, gLeft)
+  ll <- cbind(dfl$gypReqP/dfu$Area, gLeft)
   gUsed.l <- apply(ll, 1, function(x){
     xx <- as.numeric(x)
     y <- calGused(xx[1],xx[2])
@@ -392,28 +396,33 @@ optimZone1 <- function(gypZ1, df1, nzone, ds, df2, yr, qG, espmin, pricez, dRate
   
   
   # calculate final exchangeable sodium
-  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df1$CEC[df1$UpperDepth == 0],df1$CEC[df1$UpperDepth != 0])
+  new <- cbind(df3$ESPf[df3$UpperDepth == 0], df3$ESPf[df3$UpperDepth != 0], df3$CEC[df3$UpperDepth == 0],df3$CEC[df3$UpperDepth != 0])
   na.f <- apply(new, MARGIN = 1, FUN = function(x) {
     xx <- as.numeric(x)
     y <- calExNa(xx[1],xx[2],xx[3],xx[4])
     return(y)
   })
+  
+  # calculate init ExNa
+  exNa.init <- calExNa(dfu$ESP, dfl$ESP, dfu$CEC, dfl$CEC)
   # get total yield improvement for this field
-  new2 <- cbind(df2$ExNa, na.f, df2$Area)
+  new2 <- cbind(exNa.init, na.f, df2$Area)
   yld.t <- apply(new2, MARGIN = 1, FUN = function(x){
     xx <- as.numeric(x)
     y <- calcYldadd(ds, xx[1],xx[2], yr)*xx[3]
   })
   # calculate the additional income
   incomez <- sum(yld.t)*pricez
-  addInc <- yld.t*pricez
+  
+  
+  
   # calculate the net benefit over the crop cycle
-
   # gypZ1 <- round(gypZ1, digits = 2)
   netBen <- yr*incomez-costg*(sum(gypZ1))-dRatez*costg*(sum(gypZ1))*0.01*yr
   # netBen <- round(netBen, digit = 2)
-
-
+  addInc <- yld.t*pricez
+  
+  
   df <- data.frame('ZoneName' = df2$ZoneName, 'ZoneArea' = df2$Area, 'GypsumRate' = round(gypZ1/df2$Area, digits = 2), 'GypsumTotal' = round(gypZ1, digits = 2),  'AdditionalYield' = yld.t, 'AdditionalIncome' = addInc)
   out <- list('dfa' = df, 'dfb'= df3,'incAdd' = incomez, 'cost' = costg*(sum(gypZ1)),'netBen' = netBen)
   return(out)
@@ -449,7 +458,7 @@ gypsyO_side <- sidebarLayout(
     numericInput('qualG', label = strong('Gypsum quality (% Sulfur)'),
                  value = 14, min = 1, max = 18.6),
     numericInput('costg', label = strong('Cost of gypsum spread ($/t)'),
-                 value = 90, min = 10, max = 300),
+                 value = 110, min = 10, max = 300),
     
     numericInput('price', label = strong('Price of crop ($/t)'),
                  value = 30, min = 10, max = 150),
@@ -570,7 +579,7 @@ gypsyF_side <- sidebarLayout(
     numericInput('qualG_f', label = strong('Gypsum quality (% Sulfur)'),
                  value = 14, min = 10, max = 18.6),
     numericInput('costg_f', label = strong('Cost of gypsum spread ($/t)'),
-                 value = 90, min = 40, max = 300),
+                 value = 110, min = 40, max = 300),
     
     numericInput('price_f', label = strong('Price of crop ($/t)'),
                  value = 30, min = 10, max = 150),
@@ -670,7 +679,7 @@ gypsyZ_side <- sidebarLayout(
     numericInput('qualG_z', label = strong('Gypsum quality (% Sulfur)'),
                  value = 14, min = 10, max = 18.6),
     numericInput('costg_z', label = strong('Cost of gypsum spread ($/t)'),
-                 value = 90, min = 40, max = 300),
+                 value = 110, min = 40, max = 300),
     
     numericInput('price_z', label = strong('Price of crop ($/t)'),
                  value = 30, min = 10, max = 150),
@@ -691,6 +700,8 @@ gypsyZ_side <- sidebarLayout(
     br(),
     htmlOutput('NetBenTotal'),
     br(),
+    htmlOutput('gTotal_z'),
+    br(),
     # tableOutput('Table'), 
     htmlOutput('TableZ'),
     br(),
@@ -698,7 +709,7 @@ gypsyZ_side <- sidebarLayout(
     br(),
     #add download button
     downloadButton('downloadZ','Download Report', class = 'btn-block'),
-    HTML('NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.')
+    HTML('NB: As application of gypsum below 0.25 t/ha or above 10 t/ha may not be economical, the gypsum application rates for this zonal analysis are capped at 10 t/ha. Similarly, if the recomendation is adjusted so that no gypsum is applied when optimization returns a gypsum rate below 0.25 t/ha. ')
   )
 )
 
@@ -715,3 +726,240 @@ zonalAnalysis <- function(){
   )
 }
 
+# a tab that serves the same purpose of the calculations tab in gypsy original
+
+convEC <- function(x, u.in, u.out){
+  #function to convert EC between different units
+  
+  # for interchangeable/same units
+  if (u.in == u.out){
+    y <- x
+  }
+  
+  if ((u.in == 'mS/cm' & u.out == 'dS/m')|(u.in == 'dS/m' & u.out == 'mS/cm')){
+    y <- x
+  }
+  
+  if ((u.in == 'ppm' & u.out == 'mg/L')|(u.in == 'mg/L' & u.out == 'ppm')){
+    y <- x
+  }
+  
+  
+  
+  # for the units that need conversion 
+  if (u.in == 'muS/cm'){
+    if (u.out == 'dS/m' | u.out == 'mS/cm'){
+      y <- x/1000
+    }
+    if (u.out == 'mg/L' | u.out == 'ppm'){
+      y <- x/1000/0.0017
+    }
+    if (u.out == 'grains/gallon'){
+      y <- x/1000/0.022
+    }
+  }
+  
+  if (u.in == 'mS/cm' | u.in == 'dS/m'){
+    if (u.out == 'muS/cm'){
+      y <- x*1000
+    }
+    
+    if (u.out == 'mg/L' | u.out == 'ppm'){
+      y <- x/0.0017
+    }
+    if (u.out == 'grains/gallon'){
+      y <- x/0.022
+    }
+  }
+  
+  if (u.in == 'mg/L' | u.in == 'ppm'){
+    if (u.out == 'muS/cm'){
+      y <- x * 0.0017 * 1000
+    }
+    
+    if (u.out == 'mS/cm' | u.out == 'dS/m'){
+      y <- x * 0.0017
+    }
+    if (u.out == 'grains/gallon'){
+      y <- x*0.0017/0.022
+    }
+  }
+  
+  if (u.in == 'grains/gallon'){
+    if (u.out == 'mS/cm' | u.out == 'dS/m'){
+      y <- x * 0.022
+    }
+    if (u.out == 'muS/cm'){
+      y <- x * 0.022*1000
+    }
+    if (u.out == 'mg/L' | u.out == 'ppm'){
+      y <- x*0.022/0.0017
+    }
+    
+  }
+  return(y)
+  
+  
+}
+
+convECm <- function(vv, mm.in, mm.out, tt){
+  #vv - value, mm - method, tt - texture
+  if (mm.in == mm.out){
+    yy <- vv
+  }
+  
+  if (mm.in == '1:5 Soil Water' & mm.out == 'Saturated Paste'){
+    if (tt == 'Sand'){
+      yy <- vv*15
+    }
+    if (tt == 'Sandy loam'){
+      yy <- vv*13
+    }
+    if (tt == 'Loam'){
+      yy <- vv*11
+    }
+    if (tt == 'Clay loam'){
+      yy <- vv*9
+    }
+    if (tt == 'Medium clay'){
+      yy <- vv*8
+    }
+    if (tt == 'Heavy clay'){
+      yy <- vv*6
+    }
+  }
+  if (mm.in == 'Saturated Paste' & mm.out == '1:5 Soil Water'){
+    if (tt == 'Sand'){
+      yy <- vv/15
+    }
+    if (tt == 'Sandy loam'){
+      yy <- vv/13
+    }
+    if (tt == 'Loam'){
+      yy <- vv/11
+    }
+    if (tt == 'Clay loam'){
+      yy <- vv/9
+    }
+    if (tt == 'Medium clay'){
+      yy <- vv/8
+    }
+    if (tt == 'Heavy clay'){
+      yy <- vv/6
+    }
+  }
+  return(yy)
+}
+
+espCalc <- function(ca, mg, na, kk, exH){
+  cec <- ca+mg+na+kk+exH
+  esp <- na/cec * 100
+  out <- c('CEC' = cec, 'ESP' = esp)
+  return(out)
+}
+
+
+convTab <- function(){
+  tagList(
+    div(class = 'container',
+        h1('EC Converter', class = 'title fit-h1'),
+        h2('Converting between EC units', class = 'title fit-h2'),
+        HTML('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">Electrical conductivity (EC) is used to measure the salinity of soil extracts or water. Conversion between the EC units (&#956;S/cm, mS/cm, dS/m) and the concentration units (mg/L, ppm, grains/gallon) are approximate.</p>'),
+        br(),
+        
+        # insert dynamic conversion function (reactive)
+        h3('Input', class = 'title fit-h3'),
+        numericInput('ec.i', value = 1, label = NULL),
+        selectInput('ec.u', choices = c("\u03BCS/cm"="muS/cm",'mS/cm', 'dS/m', 'mg/L', 'ppm','grains/gallon'), selected = 'mS/cm', label = 'Input Unit'),
+        
+        selectInput('ec.uo', choices = c("\u03BCS/cm"="muS/cm",'mS/cm', 'dS/m', 'mg/L', 'ppm','grains/gallon'), selected = 'dS/m', label = 'Output Unit'),
+        h3('Output', class = 'title fit-h3'),
+        textOutput('ec.o', inline = T),
+        br(),
+        
+        h2('Converting between EC(1:5) and EC(s.e.)', class = 'title fit-h2'),
+        p('Soil salinity is determined by measuring the EC of a 1:5 soil water extract (EC1:5) or a saturated paste extract (ECs.e.). It is possible to convert between the two if the soil texture is known.', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        # insert conversion
+        h3('Input', class = 'title fit-h3'),
+        numericInput('ec.im', value = 0.3, label = 'dS/m'),
+        selectInput('ec.mi', choices = c('1:5 Soil Water', 'Saturated Paste'), 
+                    selected = '1:5 Soil Water', label = 'Input Method'),
+        selectInput('txtrS', choices = c('Sand','Sandy loam','Loam', 'Clay loam', 'Medium clay', 'Heavy clay'), label = 'Soil Texture', selected = 'Sand'),
+        selectInput('ec.mo', choices = c('1:5 Soil Water', 'Saturated Paste'), 
+                    selected = 'Saturated Paste', 
+                    label = 'Output Method'),
+        
+        h3('Output', class = 'title fit-h3'),
+        textOutput('ec.om', inline = T),
+        br(),
+        
+        hr(), # insert a horizontal line
+        h1('Calculating ESP and CEC', class = 'title fit-h2'),
+        h2('based on exchangeable cations and acidity', class = 'title fit-h2'),
+        # &#37 represent %
+        HTML('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">Units: me &#37;, meq/100g and cmol(+)/kg are numerically equal</p>'),
+        # insert calculation
+        numericInput('exca', value = 1, label = 'Exchangeable calcium (Ca), cmol(+)/kg'),
+        numericInput('exmg', value = 1, label = 'Exchangeable magnesium (Mg), cmol(+)/kg'),
+        numericInput('exk', value = 1, label = 'Exchangeable potassium (K), cmol(+)/kg'),
+        numericInput('exna', value = 1, label = 'Exchangeable sodium (Na), cmol(+)/kg'),
+        numericInput('exAcid', value = 0, label = 'Exchangeable acidity, cmol(+)/kg (Only relevant if pH < 6, otherwise specify 0'),
+        HTML('<h3 class="title fit-h3">Exchangeable sodium percentage (ESP) (&#37;)</h3>'),
+        textOutput('esp.o', inline = T),
+        h3('Cation exchange capacity (CEC) (cmol(+)/kg)', class = 'title fit-h3'),
+        textOutput('cec.o', inline = T),
+        br(),
+        br(),
+        br()
+        
+        
+    )
+  )
+}
+
+# a tab for irrigation water usage
+
+irrTab <- function(){
+  tagList(
+    div(class = 'container',
+        h1('Irrigation: Conjunctive use', class = 'title fit-h1'),
+        p('Achieving a desired electrical conductivity (EC) in a mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        # insert functions
+        numericInput('ecmain', value = 0.2, label = 'EC of main supply (dS/m)'),
+        numericInput('ecsup', value = 1, label = 'EC of supplementary supply (dS/m)'),
+        numericInput('ec.d', value = 0.7, label = 'Desired EC (dS/m)'),
+        numericInput('flowRate.m', value = 0, label = 'Flow rate of main supply (L/second)'),
+        textOutput('flowRate.s'),
+        textOutput('msRatio'),
+        br(),
+        
+        
+        p('Concentration of any component (e.g. residual alkali) in the mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        # insert
+        numericInput('conc.m', value = 0, label = 'Concentration in main supply'),
+        numericInput('conc.s', value = 0, label = 'Concentration in supplementary supply'),
+        textOutput('conc.mix'),
+        br(),
+        
+        p('SAR of mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        # insert
+        numericInput('sar.m', value = 0, label = 'SAR of main supply'),
+        numericInput('sar.s', value = 0, label = 'SAR of supplementary supply'),
+        textOutput('sar.mix'),
+        br(),
+        hr(),
+        h1('Irrigation: dissolvenator', class = 'title fit-h1'),
+        p('Proportion of water to pass through dissolvenator', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        numericInput('ecIrrig', value = 0.2, label = 'EC of irrigation water (dS/m)'),
+        numericInput('ecDesired', value = 0.7, label = 'Desired EC (dS/m)'),
+        textOutput('percWater'),
+        p('SAR of the mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        numericInput('sarIrrig', value = 1, label = 'SAR of irrigation water'),
+        textOutput('sar.mixd'),
+        br(),
+        br(),
+        br()
+        
+    )
+  )
+}

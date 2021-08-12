@@ -108,9 +108,20 @@ calCl_l <- function(CLu, ECsoil_u, ECsoil_l){
 
 corr_esp <- function(CEC, ESP, Cl){
   #if EC > 0.3, soil is saline, adjust ESP #should be surface soil EC
+  # THIS CHECK NEED A FLAG
   cec <- CEC-(Cl/355)
-  esp <- (((ESP*CEC/100)-(Cl/355))*100)/(CEC-(Cl/355))
-  out <- list('CEC' = cec, 'ESP' = esp)
+  
+  # only correct for salinity if the result is positive 
+  if (cec > 0){
+    flag <- F
+    esp <- (((ESP*CEC/100)-(Cl/355))*100)/(CEC-(Cl/355))
+  }else{
+    cec <- CEC 
+    esp <- ESP
+    flag <- T
+  }
+  out <- list('CEC' = cec, 'ESP' = esp, 'flag' = flag)
+  return(out)
 }
 
 
@@ -478,8 +489,8 @@ gypsyO_side <- sidebarLayout(
                  value = 10, min = 0, max = 100),
     numericInput('ECsoil_u', label = strong('EC 1:5 soil water (dS/m)'),
                  value = 0.05, min = 0, max = 5),
-    numericInput('Cl_u', label = strong('Chloride (mg/kg)'),
-                 value = 0.05, min = 0, max = 5),
+    # numericInput('Cl_u', label = strong('Chloride (mg/kg)'),
+    #              value = 0.05, min = 0, max = 5),
     
     checkboxInput(inputId = "lowDepth", label = strong("Key soil properties (20-50 cm) known"), value = FALSE),
     # Display only if the lower depth soil properties are checked
@@ -492,12 +503,22 @@ gypsyO_side <- sidebarLayout(
                                   value = 10, min = 0, max = 100),
                      numericInput('ECsoil_l', label = strong('EC 1:5 soil water (dS/m)'),
                                   value = 0.05, min = 0, max = 5),
-                     numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
-                                  value = 0.05, min = 0, max = 5),
+                     # numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
+                     #              value = 0.05, min = 0, max = 5),
                      
     ),
-    
-    
+    checkboxInput(inputId = "labTest", label = strong("Are soil inputs from commercial soil test?"), value = F),
+    # Display only if the advanced inputs box is checked
+    conditionalPanel(condition = "input.labTest == true",
+                     HTML("If EC(1:5) > 0.3 dS/m, standard laboratory tests overestimates CEC and ESP, Gypsy can correct these values using the chloride value."),
+                     #key soil inputs
+                     numericInput('Cl_u', label = strong('Chloride (mg/kg) (0-20 cm)'),
+                                  value = 0.05, min = 0, max = 5),
+                     checkboxInput(inputId = "Chloride", label = strong("Do you have chloride value for the 20-50 cm layer?"), value = F),
+                     conditionalPanel(condition = "input.Chloride == true",
+                                      numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
+                                                   value = 0.05, min = 0, max = 5),),
+    ),
     
     # Select whether to add advanced inputs
     checkboxInput(inputId = "advInput", label = strong("Advanced inputs"), value = FALSE),

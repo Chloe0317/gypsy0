@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 `r paste0('Total gypsum required to reach non-limiting ESP (t/ha):', round(out_list()$gTotal, digits = 2))`
 
-
+`r out_list()$flag`
 
 ```{r table, echo=FALSE}
 df <- out_list()$df

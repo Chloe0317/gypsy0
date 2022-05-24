@@ -52,14 +52,16 @@ source(spath)
 #define th ui -----------
 
 ui <- fluidPage(             
-  theme = shinytheme("cerulean"),
+  # theme = shinytheme("cerulean"),
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+  ),
   titlePanel("Gypsy: a discounted cash flow analysis for the application of gypsum to sodic soils"),
-  # footer = includeHTML("www/scripts/footer.html"),
   windowTitle = 'Gypsy',
   navbarPage(title = 'Gypsy',
              # tab panel 1 - Home ---------
              tabPanel("Home",
-                      p('Note that for this testing, yield and economic analysis for wheat was dummied from the sugarcane, and is for illustration only.', 'We are conducting a meta-analysis on effects of sodicity amelioration on yield, which will hopefully inform the yield and economic analysis for wheat and be incorporated into Gypsy.' ,"For field-based analysis, currently only areas within the GRDC northern grain-cropping region (NGR) will return a result, because we only have ESP maps for the NGR as a part of my (Chloe's) PhD. This means that it won't work for most sugar-growing regions apart from a small area near Sarina, Queensland.", 'A next step might be perform ESP mapping for Australia, or at least for the sugar and grains cropping regions, to enable wider application.', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px")
+                      p('Note that for this testing, yield and economic analysis for wheat was dummied from the sugarcane, and is for illustration only.', 'We are conducting a meta-analysis on effects of sodicity amelioration on yield, which will hopefully inform the yield and economic analysis for wheat and be incorporated into Gypsy.' ,"For field-based analysis, currently only areas within the GRDC northern grain-cropping region (NGR) will return a result, because we only have ESP maps for the NGR as a part of my (Chloe's) PhD. This means that it won't work for most sugar-growing regions apart from a small area near Sarina, Queensland.", 'A next step might be perform ESP mapping for Australia, or at least for the sugar and grains cropping regions, to enable wider application.', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px")
                       # includeHTML("www/scripts/footer.html")
              ),
              
@@ -67,9 +69,9 @@ ui <- fluidPage(
              tabPanel('Profile-based',
                       profileAnalysis()),
              
-             #tab panel 3 - field-based analysis ---------
-             tabPanel('Field-based',
-                      fieldAnalysis()),
+             # #tab panel 3 - field-based analysis ---------
+             # tabPanel('Field-based',
+             #          fieldAnalysis()),
              # 
              #tab panel 4 - zonal-based analysis ---------
              tabPanel('Zonal-based',
@@ -92,9 +94,9 @@ ui <- fluidPage(
 ########define the server logic ---------
 
 # load the relevant data
-fesp <- list.files('www/data/ESP/', full.names = T)
-esp.r <- stack(fesp)
-cec.r <- stack('www/data/CEC/CEC_NGR.tif')
+# fesp <- list.files('www/data/ESP/', full.names = T)
+# esp.r <- stack(fesp)
+# cec.r <- stack('www/data/CEC/CEC_NGR.tif')
 
 
 
@@ -126,52 +128,32 @@ server <- function(input, output, session){
       showNotification("In soils with EC(1:5) > 0.3 dS/m, standard laboratory tests overestimates CEC and ESP, Gypsy can correct these values using the chloride value. If you do not have a chloride value for the 20-50 cm layer, this will be estimated based on your soil attributes values in the 0-20 cm layer.", type = 'warning', duration = 20)
       
     }
-    flag.u <- FALSE
-    flag.l <- FALSE
-    if (input$ECsoil_u > 0.3 & input$labTest == T & input$lowDepth == T){
+    
+    
+    
+    if (input$ECsoil_u > 0.3 & input$lowDepth == T){
       # adjust ESP and CEC for both upper and lower
       soil.u <- corr_esp(input$CECu, input$ESPinit_u, input$Cl_u)
-      flag.u <- soil.u$flag
-      if (input$ECsoil_l > 0.3 & input$Chloride == T){
-        soil.l <- corr_esp(input$CECl, input$ESPinit_l, input$Cl_l)
-      }
-      if (input$ECsoil_l > 0.3 & input$Chloride == F){
-        cll <- input$Cl_u*input$ECsoil_l/input$ECsoil_u
-        soil.l <- corr_esp(input$CECl, input$ESPinit_l, cll)
-      }
+      soil.l <- corr_esp(input$CECl, input$ESPinit_l, input$Cl_l)
       soilV.l <- list('CECl'= soil.l$CEC, 'ESPl' = soil.l$ESP, 'ECsoil_l'=input$ECsoil_l)
-      flag.l <- soil.l$flag
     }
     
-    if (input$ECsoil_u > 0.3 & input$lowDepth == F & input$labTest == T){
+    if (input$ECsoil_u > 0.3 & input$lowDepth == F){
       # adjust ESP and CEC for both upper and lower
       soil.u <- corr_esp(input$CECu, input$ESPinit_u, input$Cl_u)
-      flag.u <- soil.u$flag
       # extrapolation of soil attribute values from upper depths 
       # this is sugarcane plantation district-based
-      soil.l <- cal_l(soil.u$CEC, soil.u$ESP, input$ECsoil_u, input$location)
-      ecl <- soil.l$ECsoil_l
-      # correct lower depths for EC, since lowerdepth is F, estimate cll 
-      if (soil.l$ECsoil_l > 0.3){
-        cll <- input$Cl_u*input$ECsoil_l/input$ECsoil_u
-        soil.l <- corr_esp(soil.l$CECl, soil.l$ESPl, cll)
-      }
-      soilV.l <- list('CECl'= soil.l$CEC, 'ESPl' = soil.l$ESP, 'ECsoil_l'=ecl)
+      soilV.l <- cal_l(soil.u$CEC, soil.u$ESP, input$ECsoil_u, input$location)
       
-      flag.l <- soil.l$flag
+      # correct lower depths for EC???
+      # check if chloride value exist??? 
+      
     }
-    if (flag.u == T | flag.l == T){
-      showNotification("The chloride content is out of range. CEC and ESP are not corrected for salinity. Keep in mind that the actual net benefit of gypsum application will thus be less than calculated by Gypsy. The higher the EC, the greater the difference.", type = 'warning', duration = 20)
-    }
-
-    
-    
     if (input$ECsoil_u <= 0.3 & input$lowDepth == F){
       # extrapolation of soil attribute values from upper depths 
       # this is sugarcane plantation district-based
       soil.u <- list('CEC'= input$CECu, 'ESP' = input$ESPinit_u)
       soilV.l <- cal_l(input$CECu, input$ESPinit_u, input$ECsoil_u, input$location)
-
     }
     
     if (input$ECsoil_u <= 0.3 & input$lowDepth == T){
@@ -180,9 +162,6 @@ server <- function(input, output, session){
       soil.u <- list('CEC'= input$CECu, 'ESP' = input$ESPinit_u)
       soilV.l <- list('CECl'= input$CECl, 'ESPl' = input$ESPinit_l, 'ECsoil_l'=input$ECsoil_l)
     }
-    
-
-    
     # output adjusted values for further analysis
     # calculate gypsum requirement for each soil depth layer
     gRequ <- calGreq(ESPmin = input$ESPmin_u, ESPinit = soil.u$ESP,
@@ -260,18 +239,11 @@ server <- function(input, output, session){
              'Net benefit over time period (&#36;/ha)')
     df <- cbind.data.frame(var, df)
     colnames(df) <- NULL
-    if (flag.u == T | flag.l == T){
-      mm <- 'The chloride content is out of range. CEC and ESP are not corrected for salinity. Keep in mind that the actual net benefit of gypsum application will thus be less than calculated by Gypsy. The higher the EC, the greater the difference.'
-    }else{
-      mm <- ""
-
-    }
     out <- list(
       'df'= df,
       'gTotal' = gTotal,
       'gypRate' = gypRate,
-      'ben.net' = ben.net,
-      'flag' = mm)
+      'ben.net' = ben.net)
     return(out)
   })
   
@@ -317,7 +289,7 @@ server <- function(input, output, session){
   #report total gypsum required
   output$gTotal <- renderText({
     req(out_list())
-    paste0('<p>', out_list()$flag, '</p>','<p>Total gypsum required to reach non-limiting ESP (t/ha): <b>', round(out_list()$gTotal, digits = 2), '</b></p>')})
+    paste0('Total gypsum required to reach non-limiting ESP (t/ha): <b>', round(out_list()$gTotal, digits = 2), '</b>')})
   
   ##### field-based analysis ----------
   ## reactive values
@@ -908,7 +880,7 @@ server <- function(input, output, session){
     filename = function(){
       tempfile(paste0(input$fieldName, 'Report'), tmpdir = tempdir(), fileext = '.html')
       # paste0(input$fieldName, 'Report.html')
-      },
+    },
     # knitr provides fancy reporting however, can be very slow for pdf, output html instead
     content = function(file){
       # Copy the template r markdown file to a temporary directory before processing it, in

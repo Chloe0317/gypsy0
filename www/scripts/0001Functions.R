@@ -2,7 +2,43 @@
 #############
 #functions
 ##############
-
+suppressPackageStartupMessages({
+  
+  # libraries for data manipulation
+  library(tidyverse)
+  library(dplyr)
+  library(reshape2)
+  # libraries for displaying nice table
+  # library(xtable) # for latex data presentation if needed
+  library(kableExtra)
+  
+  library(rmarkdown)
+  
+  # libraries for the shiny app and themes
+  library(shiny)
+  library(shinythemes)
+  # library(shinysky)
+  
+  # libraries for raster/gis data manipulation
+  library(rgdal)
+  library(ithir)
+  library(raster)
+  library(rasterVis)
+  library(rgeos)
+  library(geoR)
+  
+  # libraries for plotting graphes
+  library(RColorBrewer)
+  library(viridis)
+  library(ggplot2)
+  library(ggrepel)
+  library(gridExtra)
+  library(rnaturalearth)
+  library(legendMap)
+  library(ggmap)
+  
+  
+})
 # General setup ---------------
 # this contains variables that need to be loaded into the app only once before evaluation
 districts <- c('Mareeba','Herbert', 'Burdekin', 'Proserpine', 'CentralQld', 'SQld')
@@ -16,6 +52,8 @@ depthsNames <- c('0-5 cm', '5-15 cm', '15-30 cm',
 depths <- c(5,10,15,30,40,100)
 #depth.all is  the threshold of each depth interval
 depth.all <- c(0,5,15,30,60,100,200)
+
+
 ###variableRaster-based----------
 
 subImage = function(rr, aoi.reproj) {
@@ -113,14 +151,12 @@ corr_esp <- function(CEC, ESP, Cl){
   
   # only correct for salinity if the result is positive 
   if (cec > 0){
-    flag <- F
     esp <- (((ESP*CEC/100)-(Cl/355))*100)/(CEC-(Cl/355))
   }else{
     cec <- CEC 
-    esp <- ESP
-    flag <- T
+    esp <- ESP 
   }
-  out <- list('CEC' = cec, 'ESP' = esp, 'flag' = flag)
+  out <- list('CEC' = cec, 'ESP' = esp)
   return(out)
 }
 
@@ -451,8 +487,8 @@ gypsyO_side <- sidebarLayout(
   sidebarPanel(
     
     #specify paddock name
-    textInput(inputId = 'fieldName', label = strong('Paddock Name'), value = "", width = NULL,
-              placeholder = NULL),
+    textInput(inputId = 'fieldName', label = strong('Paddock Name'), 
+              value = "", width = NULL, placeholder = NULL),
     
     # select crop 
     # when we have more crops, build a df so that crops are limited by locations
@@ -485,12 +521,13 @@ gypsyO_side <- sidebarLayout(
     HTML("Key soil properties (0-20 cm)"),
     numericInput('CECu', label = strong('CEC (cmolc/kg)'),
                  value = 10, min = 0.01, max = 60),
+    
     numericInput('ESPinit_u', label = strong('ESP (%)'),
                  value = 10, min = 0, max = 100),
     numericInput('ECsoil_u', label = strong('EC 1:5 soil water (dS/m)'),
                  value = 0.05, min = 0, max = 5),
-    # numericInput('Cl_u', label = strong('Chloride (mg/kg)'),
-    #              value = 0.05, min = 0, max = 5),
+    numericInput('Cl_u', label = strong('Chloride (mg/kg)'),
+                 value = 0.05, min = 0, max = 5),
     
     checkboxInput(inputId = "lowDepth", label = strong("Key soil properties (20-50 cm) known"), value = FALSE),
     # Display only if the lower depth soil properties are checked
@@ -503,22 +540,12 @@ gypsyO_side <- sidebarLayout(
                                   value = 10, min = 0, max = 100),
                      numericInput('ECsoil_l', label = strong('EC 1:5 soil water (dS/m)'),
                                   value = 0.05, min = 0, max = 5),
-                     # numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
-                     #              value = 0.05, min = 0, max = 5),
+                     numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
+                                  value = 0.05, min = 0, max = 5),
                      
     ),
-    checkboxInput(inputId = "labTest", label = strong("Are soil inputs from commercial soil test?"), value = F),
-    # Display only if the advanced inputs box is checked
-    conditionalPanel(condition = "input.labTest == true",
-                     HTML("If EC(1:5) > 0.3 dS/m, standard laboratory tests overestimates CEC and ESP, Gypsy can correct these values using the chloride value."),
-                     #key soil inputs
-                     numericInput('Cl_u', label = strong('Chloride (mg/kg) (0-20 cm)'),
-                                  value = 0.05, min = 0, max = 5),
-                     checkboxInput(inputId = "Chloride", label = strong("Do you have chloride value for the 20-50 cm layer?"), value = F),
-                     conditionalPanel(condition = "input.Chloride == true",
-                                      numericInput('Cl_l', label = strong('Chloride (mg/kg)'),
-                                                   value = 0.05, min = 0, max = 5),),
-    ),
+    
+    
     
     # Select whether to add advanced inputs
     checkboxInput(inputId = "advInput", label = strong("Advanced inputs"), value = FALSE),
@@ -562,7 +589,6 @@ gypsyO_side <- sidebarLayout(
     #add download button
     downloadButton('downloadP','Download', class = 'btn-block'),
     HTML('NB: applying more than 10 t/ha is not recommended, even if estimated net benefit is positive.')
-    
   )
 )
 
@@ -644,7 +670,7 @@ profileAnalysis <- function(){
   tagList(
     div(class = 'container', 
         h1('Profile-based', class = 'title fit-h1'),
-        p('The profile-based analysis of this new online version of Gypsy performs the same analysis offered by the original Gypsy software.',style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('The profile-based analysis of this new online version of Gypsy performs the same analysis offered by the original Gypsy software.',style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         #add the input and output
         gypsyO_side
     )
@@ -657,7 +683,7 @@ fieldAnalysis <- function(){
   tagList(
     div(class = 'container',
         h1('Field-based', class = 'title fit-h1'),
-        p('The field-based analysis of this new online version of Gypsy performs variable-rate calculation of gypsum requirement based on a boundary file of a field.','Upload an ESRI shapefile to allow the delineation of field boundaries. Note that a shapefile consists of different files with extensions .shp, .dbf, .shx, .prj. Select all the relevant files then click upload. Select the desired soil depths of calculation from the drop-down menu. Click calculate.',style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('The field-based analysis of this new online version of Gypsy performs variable-rate calculation of gypsum requirement based on a boundary file of a field.','Upload an ESRI shapefile to allow the delineation of field boundaries. Note that a shapefile consists of different files with extensions .shp, .dbf, .shx, .prj. Select all the relevant files then click upload. Select the desired soil depths of calculation from the drop-down menu. Click calculate.',style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         gypsyF_side
     )
   )
@@ -741,7 +767,7 @@ zonalAnalysis <- function(){
         h1('Zonal-based', class = 'title fit-h1'),
         
         # p() used previously will leave blank spaces next to super-scripted m3, need to pass html code instead
-        HTML(paste0('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">The zonal-based analysis of this new online version of Gypsy performs gypsum recommendation based on zonal data. Key in the budget available for the field in question.','Upload a .csv file with the following headings in this order: ZoneName, Area (ha), UpperDepth (cm), LowerDepth (cm), EC (dS/m), CEC (cmol(+)/kg), ExNa (cmol(+)/kg), ESP (%), Cl (mg/kg), BD (t/m',tags$sup('3'), '). The gypsum application recommended for each zone will be capped at 10 t/ha and is based on maximizing net-benefit of the whole field.</p>')),
+        HTML(paste0('<p style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px">The zonal-based analysis of this new online version of Gypsy performs gypsum recommendation based on zonal data. Key in the budget available for the field in question.','Upload a .csv file with the following headings in this order: ZoneName, Area (ha), UpperDepth (cm), LowerDepth (cm), EC (dS/m), CEC (cmol(+)/kg), ExNa (cmol(+)/kg), ESP (%), Cl (mg/kg), BD (t/m',tags$sup('3'), '). The gypsum application recommended for each zone will be capped at 10 t/ha and is based on maximizing net-benefit of the whole field.</p>')),
         gypsyZ_side
     )
   )
@@ -885,7 +911,7 @@ convTab <- function(){
     div(class = 'container',
         h1('EC Converter', class = 'title fit-h1'),
         h2('Converting between EC units', class = 'title fit-h2'),
-        HTML('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">Electrical conductivity (EC) is used to measure the salinity of soil extracts or water. Conversion between the EC units (&#956;S/cm, mS/cm, dS/m) and the concentration units (mg/L, ppm, grains/gallon) are approximate.</p>'),
+        HTML('<p style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px">Electrical conductivity (EC) is used to measure the salinity of soil extracts or water. Conversion between the EC units (&#956;S/cm, mS/cm, dS/m) and the concentration units (mg/L, ppm, grains/gallon) are approximate.</p>'),
         br(),
         
         # insert dynamic conversion function (reactive)
@@ -899,7 +925,7 @@ convTab <- function(){
         br(),
         
         h2('Converting between EC(1:5) and EC(s.e.)', class = 'title fit-h2'),
-        p('Soil salinity is determined by measuring the EC of a 1:5 soil water extract (EC1:5) or a saturated paste extract (ECs.e.). It is possible to convert between the two if the soil texture is known.', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('Soil salinity is determined by measuring the EC of a 1:5 soil water extract (EC1:5) or a saturated paste extract (ECs.e.). It is possible to convert between the two if the soil texture is known.', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         # insert conversion
         h3('Input', class = 'title fit-h3'),
         numericInput('ec.im', value = 0.3, label = 'dS/m'),
@@ -918,7 +944,7 @@ convTab <- function(){
         h1('Calculating ESP and CEC', class = 'title fit-h2'),
         h2('based on exchangeable cations and acidity', class = 'title fit-h2'),
         # &#37 represent %
-        HTML('<p style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px">Units: me &#37;, meq/100g and cmol(+)/kg are numerically equal</p>'),
+        HTML('<p style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px">Units: me &#37;, meq/100g and cmol(+)/kg are numerically equal</p>'),
         # insert calculation
         numericInput('exca', value = 1, label = 'Exchangeable calcium (Ca), cmol(+)/kg'),
         numericInput('exmg', value = 1, label = 'Exchangeable magnesium (Mg), cmol(+)/kg'),
@@ -944,7 +970,7 @@ irrTab <- function(){
   tagList(
     div(class = 'container',
         h1('Irrigation: Conjunctive use', class = 'title fit-h1'),
-        p('Achieving a desired electrical conductivity (EC) in a mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('Achieving a desired electrical conductivity (EC) in a mix', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         # insert functions
         numericInput('ecmain', value = 0.2, label = 'EC of main supply (dS/m)'),
         numericInput('ecsup', value = 1, label = 'EC of supplementary supply (dS/m)'),
@@ -955,14 +981,14 @@ irrTab <- function(){
         br(),
         
         
-        p('Concentration of any component (e.g. residual alkali) in the mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('Concentration of any component (e.g. residual alkali) in the mix', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         # insert
         numericInput('conc.m', value = 0, label = 'Concentration in main supply'),
         numericInput('conc.s', value = 0, label = 'Concentration in supplementary supply'),
         textOutput('conc.mix'),
         br(),
         
-        p('SAR of mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('SAR of mix', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         # insert
         numericInput('sar.m', value = 0, label = 'SAR of main supply'),
         numericInput('sar.s', value = 0, label = 'SAR of supplementary supply'),
@@ -970,11 +996,11 @@ irrTab <- function(){
         br(),
         hr(),
         h1('Irrigation: dissolvenator', class = 'title fit-h1'),
-        p('Proportion of water to pass through dissolvenator', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('Proportion of water to pass through dissolvenator', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         numericInput('ecIrrig', value = 0.2, label = 'EC of irrigation water (dS/m)'),
         numericInput('ecDesired', value = 0.7, label = 'Desired EC (dS/m)'),
         textOutput('percWater'),
-        p('SAR of the mix', style="text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+        p('SAR of the mix', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px"),
         numericInput('sarIrrig', value = 1, label = 'SAR of irrigation water'),
         textOutput('sar.mixd'),
         br(),

@@ -1,0 +1,20 @@
+/* use the soil crc font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Raleway&display=swap');
+
+body {
+  background-color: white;
+  color: #00354A; /* text color */
+  font-family: 'Raleway', sans-serif;
+}
+
+
+
+/* Change header text to imported font */
+h1, h2, h3 {
+  font-family: 'Raleway', sans-serif;
+}
+
+/* Make text visible on inputs */
+.shiny-input-container {
+  color: #97BF0D;
+}

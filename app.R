@@ -61,7 +61,7 @@ ui <- fluidPage(
   navbarPage(title = 'Gypsy',
              # tab panel 1 - Home ---------
              tabPanel("Home",
-                      p('Note that for this testing, yield and economic analysis for wheat was dummied from the sugarcane, and is for illustration only.', 'We are conducting a meta-analysis on effects of sodicity amelioration on yield, which will hopefully inform the yield and economic analysis for wheat and be incorporated into Gypsy.' ,"For field-based analysis, currently only areas within the GRDC northern grain-cropping region (NGR) will return a result, because we only have ESP maps for the NGR as a part of my (Chloe's) PhD. This means that it won't work for most sugar-growing regions apart from a small area near Sarina, Queensland.", 'A next step might be perform ESP mapping for Australia, or at least for the sugar and grains cropping regions, to enable wider application.', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px")
+                      p('The purpose of Gypsy is to help farmers make decisions on what rates of gypsum to apply to sodic soils. Crop growth and yield are badly affected by soil sodicity in considerable areas. Adding gypsum, which is a relatively soluble source of calcium, can often reduce soil sodicity. The optimum amount to add depends on several soil properties, as well as climate, irrigation water amount and quality, costs and prices. Gypsy can be used to estimate the effect of gypsum on the exchangeable sodium under any crop, and a cost-benefit calculation can be made for sugarcane. The program is designed to run with a minimum of inputs and therefore involves various assumptions, so it is intended as an approximate guide only.', style="text-align:justify;color:white;background-color:#97BF0D;padding:15px;border-radius:10px")
                       # includeHTML("www/scripts/footer.html")
              ),
              
@@ -86,6 +86,19 @@ ui <- fluidPage(
              
              #tab panel 5 - About ------------
              tabPanel('About',
+                      p('For sugarcane, Gypsy estimates the influence of a gypsum addition on sugarcane yield and cash flow on neutral-alkaline soils in Australia, using known relationships between yield and sodicity, and the effect of gypsum on sodicity (<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0011/288731/Gypsy-Manual.pdf">Nelson et al., 2000</a>). The inputs are cation exchange capacity (CEC) and exchangeable sodium percentage (ESP) for the 0-25 cm and 25-50 cm depth layers, cost and quality of the gypsum, price of cane, and a discount rate. The output is a cash flow analysis, with a graph showing the net benefit against different gypsum rates. Gypsy is designed for Australian sugarcane growers and their advisors, to be used together with the manual <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf"> "Diagnosis and Management of Sodic Soils under Sugarcane" (Nelson et al., 2001)</a>, the <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0004/288733/FieldGuide.pdf"> "Field Guide for Diagnosis of Sodic Soils in the Sugar Industry" (Nelson, 2000)</a>, and local experience. For field-based analysis, currently, only areas within the GRDC northern grain-cropping region (NGR) will return a result because ESP maps are available only for that region (<a href="https://doi.org/https://doi.org/10.1016/j.geoderma.2019.114151">Lai et al., 2020</a>). This means that it will not work for most sugar-growing regions apart from a small area near Sarina, Queensland. A next step might be to produce ESP maps for Australia, or at least for the sugar and grains cropping regions, to enable its wider application. '),
+                      p('The wheat option is not yet parameterised and is for illustration only. A meta-analysis on the effects of sodicity amelioration on yield is being conducted. It will hopefully inform the yield and economic analysis for wheat and be incorporated into Gypsy in the future.There are also tabs for calculations of sodicity and salinity-related properties of soil and water. As irrigation water quality is critical to managing sodic soils, Gypsy can also be used to calculate how irrigation water quality can be modified using a dissolvenator or by mixing water from different sources (conjunctive use). Gypsy can also be used to calculate CEC and ESP from exchangeable cation values, to convert between different units for electrical conductivity (EC), and to estimate changes in ESP when lime is added to acid sodic topsoils. '),
+                      p('This online version of <a href="https://www.jcu.edu.au/college-of-science-and-engineering/CSE-Research/earth-and-environmental-science-research/gypsy-program/_nocache">Gypsy Program</a> (<a href="http://www.gypsycalculator.com/">Gypsy Calculator</a>) was created by Chloe Lai, funded by the CRC for High Performance Soils, in consultation with Peter Larsen, Gus Manatsa and Rob Milla. It is based on the Gypsy Program. The underlying calculations are described by <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf">Nelson et al. (2000)</a>.'),
+                      h1("Contacts"),
+                      p('<a href = "mailto: Chloe.Lai@usq.edu.au">Chloe Lai</a>, University of Southern Queensland'),
+                      p('<a href = "mailto: paul.nelson@jcu.edu.au">Paul Nelson</a>, James Cook University'),
+                      h1("References"),
+                      p('Lai, Y.R., Orton, T. G., Pringle, M. J., Menzies, N. W., & Dang, Y. P. 2020. Increment averaged kriging: a comparison with depth-harmonized mapping of soil exchangeable sodium percentage in a cropping region of eastern Australia. <em>Geoderma</em>, 363, 114151. <a href="doi:10.1016/j.geoderma.2019.114151">doi:10.1016/j.geoderma.2019.114151.</a>'),
+                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0004/288733/FieldGuide.pdf">Nelson PN. 2000. <em> Field Guide. Diagnosis of sodicity and related problems of soil and irrigation water in the Australian sugar industry. </em> CRC for Sustainable Sugar Production, Townsville. 32 pp.</a>'),
+                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0011/288731/Gypsy-Manual.pdf">Nelson, P.N., Swan, G., Fitzgerald, T. and Brennan, L. 2000. <em> “Gypsy”, discounted cash flow analysis for application of gypsum to sodic soils under sugarcane. </em> CRC for Sustainable Sugar Production, Townsville.</a>'),
+                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf">Nelson PN, Ham GJ, Kingston G, Burgess D, Wood A, Christianos N, Hardy S, Wilson P and Lawer A. 2001. <em> Diagnosis and Management of Sodic Soils under Sugarcane. </em> CRC for Sustainable Sugar Production, Townsville. 64 pp.</a>')
+                      
+                      
                       # includeHTML("www/scripts/footer.html")
              )
   )
@@ -125,7 +138,7 @@ server <- function(input, output, session){
     # check the EC of soil and adjust ESP 
     req(input$ECsoil_u)
     if (input$ECsoil_u > 0.3) {
-      showNotification("In soils with EC(1:5) > 0.3 dS/m, standard laboratory tests overestimates CEC and ESP, Gypsy can correct these values using the chloride value. If you do not have a chloride value for the 20-50 cm layer, this will be estimated based on your soil attributes values in the 0-20 cm layer.", type = 'warning', duration = 20)
+      showNotification("In soils with EC(1:5) > 0.3 dS/m, standard laboratory tests overestimates CEC and ESP, Gypsy can correct these values using the chloride value. If you do not have a chloride value for the 25-50 cm layer, this will be estimated based on your soil attributes values in the 0-25 cm layer.", type = 'warning', duration = 20)
       
     }
     
@@ -234,7 +247,7 @@ server <- function(input, output, session){
     #create a df with rows corresponding to: gypRate, ESPfin_u, ESPfin_l, surG, cost, yldAdd, income.add, netBen
     df <- rbind.data.frame(gypRate, espFin_u, espFin_l, surG, cost.add, yldAdd, income.add, ben.net) %>%
       round(digits = 2)
-    var <- c('Gypsum application rates (t/ha)', 'Final ESP (0-20 cm)', 'Final ESP (20-50 cm)','Surplus Gypsum (t/ha)',
+    var <- c('Gypsum application rates (t/ha)', 'Final ESP (0-25 cm)', 'Final ESP (25-50 cm)','Surplus Gypsum (t/ha)',
              'Gypsum cost, spread (&#36;/ha)', 'Additional yield p.a. (t/ha)', 'Additional income p.a. (&#36;/ha)',
              'Net benefit over time period (&#36;/ha)')
     df <- cbind.data.frame(var, df)

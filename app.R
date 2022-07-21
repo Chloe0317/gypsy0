@@ -44,7 +44,7 @@ suppressPackageStartupMessages({
 
 # source relevant functions --------------
 
-spath <- file.path('www/scripts', '0001Functions.R')
+spath <- file.path(getwd(),'/www/scripts', '0001Functions.R')
 
 source(spath)
 
@@ -52,10 +52,12 @@ source(spath)
 #define th ui -----------
 
 ui <- fluidPage(             
-  # theme = shinytheme("cerulean"),
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
-  ),
+  # tags$head(
+  #   
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+  # ),
+  theme = shinytheme("cerulean"),
+  tags$head(includeHTML("www/scripts/analytics.html")),
   titlePanel("Gypsy: a discounted cash flow analysis for the application of gypsum to sodic soils"),
   windowTitle = 'Gypsy',
   navbarPage(title = 'Gypsy',
@@ -72,7 +74,7 @@ ui <- fluidPage(
              # #tab panel 3 - field-based analysis ---------
              # tabPanel('Field-based',
              #          fieldAnalysis()),
-             # 
+
              #tab panel 4 - zonal-based analysis ---------
              tabPanel('Zonal-based',
                       zonalAnalysis()),
@@ -86,27 +88,15 @@ ui <- fluidPage(
              
              #tab panel 5 - About ------------
              tabPanel('About',
-                      p('For sugarcane, Gypsy estimates the influence of a gypsum addition on sugarcane yield and cash flow on neutral-alkaline soils in Australia, using known relationships between yield and sodicity, and the effect of gypsum on sodicity (<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0011/288731/Gypsy-Manual.pdf">Nelson et al., 2000</a>). The inputs are cation exchange capacity (CEC) and exchangeable sodium percentage (ESP) for the 0-25 cm and 25-50 cm depth layers, cost and quality of the gypsum, price of cane, and a discount rate. The output is a cash flow analysis, with a graph showing the net benefit against different gypsum rates. Gypsy is designed for Australian sugarcane growers and their advisors, to be used together with the manual <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf"> "Diagnosis and Management of Sodic Soils under Sugarcane" (Nelson et al., 2001)</a>, the <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0004/288733/FieldGuide.pdf"> "Field Guide for Diagnosis of Sodic Soils in the Sugar Industry" (Nelson, 2000)</a>, and local experience. For field-based analysis, currently, only areas within the GRDC northern grain-cropping region (NGR) will return a result because ESP maps are available only for that region (<a href="https://doi.org/https://doi.org/10.1016/j.geoderma.2019.114151">Lai et al., 2020</a>). This means that it will not work for most sugar-growing regions apart from a small area near Sarina, Queensland. A next step might be to produce ESP maps for Australia, or at least for the sugar and grains cropping regions, to enable its wider application. '),
-                      p('The wheat option is not yet parameterised and is for illustration only. A meta-analysis on the effects of sodicity amelioration on yield is being conducted. It will hopefully inform the yield and economic analysis for wheat and be incorporated into Gypsy in the future.There are also tabs for calculations of sodicity and salinity-related properties of soil and water. As irrigation water quality is critical to managing sodic soils, Gypsy can also be used to calculate how irrigation water quality can be modified using a dissolvenator or by mixing water from different sources (conjunctive use). Gypsy can also be used to calculate CEC and ESP from exchangeable cation values, to convert between different units for electrical conductivity (EC), and to estimate changes in ESP when lime is added to acid sodic topsoils. '),
-                      p('This online version of <a href="https://www.jcu.edu.au/college-of-science-and-engineering/CSE-Research/earth-and-environmental-science-research/gypsy-program/_nocache">Gypsy Program</a> (<a href="http://www.gypsycalculator.com/">Gypsy Calculator</a>) was created by Chloe Lai, funded by the CRC for High Performance Soils, in consultation with Peter Larsen, Gus Manatsa and Rob Milla. It is based on the Gypsy Program. The underlying calculations are described by <a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf">Nelson et al. (2000)</a>.'),
-                      h1("Contacts"),
-                      p('<a href = "mailto: Chloe.Lai@usq.edu.au">Chloe Lai</a>, University of Southern Queensland'),
-                      p('<a href = "mailto: paul.nelson@jcu.edu.au">Paul Nelson</a>, James Cook University'),
-                      h1("References"),
-                      p('Lai, Y.R., Orton, T. G., Pringle, M. J., Menzies, N. W., & Dang, Y. P. 2020. Increment averaged kriging: a comparison with depth-harmonized mapping of soil exchangeable sodium percentage in a cropping region of eastern Australia. <em>Geoderma</em>, 363, 114151. <a href="doi:10.1016/j.geoderma.2019.114151">doi:10.1016/j.geoderma.2019.114151.</a>'),
-                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0004/288733/FieldGuide.pdf">Nelson PN. 2000. <em> Field Guide. Diagnosis of sodicity and related problems of soil and irrigation water in the Australian sugar industry. </em> CRC for Sustainable Sugar Production, Townsville. 32 pp.</a>'),
-                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0011/288731/Gypsy-Manual.pdf">Nelson, P.N., Swan, G., Fitzgerald, T. and Brennan, L. 2000. <em> “Gypsy”, discounted cash flow analysis for application of gypsum to sodic soils under sugarcane. </em> CRC for Sustainable Sugar Production, Townsville.</a>'),
-                      p('<a href="https://www.jcu.edu.au/__data/assets/pdf_file/0003/289074/Nelsonetal2001-SodicitySugarcane_sm2.pdf">Nelson PN, Ham GJ, Kingston G, Burgess D, Wood A, Christianos N, Hardy S, Wilson P and Lawer A. 2001. <em> Diagnosis and Management of Sodic Soils under Sugarcane. </em> CRC for Sustainable Sugar Production, Townsville. 64 pp.</a>')
-                      
-                      
+                      includeHTML("www/scripts/about.html")
                       # includeHTML("www/scripts/footer.html")
              )
   )
 )
 
 ########define the server logic ---------
-
-# load the relevant data
+# # 
+# # #load the relevant data
 # fesp <- list.files('www/data/ESP/', full.names = T)
 # esp.r <- stack(fesp)
 # cec.r <- stack('www/data/CEC/CEC_NGR.tif')
